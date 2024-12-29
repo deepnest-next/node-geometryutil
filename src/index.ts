@@ -1,17 +1,34 @@
 /*!
  * General purpose geometry functions for polygon/Bezier calculations
  * Copyright 2015 Jack Qiao
+ * Converted to TypeScript by Josef Fröhle, 2024
  * Licensed under the MIT license
  */
 
 'use strict'
+
+interface Point {
+  x: number
+  y: number
+  marked?: boolean
+}
+
+interface Polygon extends Array<Point> {
+  offsetx?: number
+  offsety?: number
+  // rotated
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+}
 
 // private shared variables/methods
 
 // floating point comparison tolerance
 const TOL = Math.pow(10, -9) // Floating point error is likely to be above 1 epsilon
 
-function _almostEqual(a, b, tolerance?: number) {
+function _almostEqual(a: number, b: number, tolerance?: number) {
   if (!tolerance) {
     tolerance = TOL
   }
@@ -19,27 +36,27 @@ function _almostEqual(a, b, tolerance?: number) {
 }
 
 // returns true if points are within the given distance
-function _withinDistance(p1, p2, distance) {
-  var dx = p1.x - p2.x
-  var dy = p1.y - p2.y
+function _withinDistance(p1: Point, p2: Point, distance: number) {
+  const dx = p1.x - p2.x
+  const dy = p1.y - p2.y
   return dx * dx + dy * dy < distance * distance
 }
 
-function _degreesToRadians(angle) {
+function _degreesToRadians(angle: number) {
   return angle * (Math.PI / 180)
 }
 
-function _radiansToDegrees(angle) {
+function _radiansToDegrees(angle: number) {
   return angle * (180 / Math.PI)
 }
 
 // normalize vector into a unit vector
-function _normalizeVector(v) {
+function _normalizeVector(v: Point) {
   if (_almostEqual(v.x * v.x + v.y * v.y, 1)) {
     return v // given vector was already a unit vector
   }
-  var len = Math.sqrt(v.x * v.x + v.y * v.y)
-  var inverse = 1 / len
+  const len = Math.sqrt(v.x * v.x + v.y * v.y)
+  const inverse = 1 / len
 
   return {
     x: v.x * inverse,
@@ -49,7 +66,7 @@ function _normalizeVector(v) {
 
 // returns true if p lies on the line segment defined by AB, but not at any endpoints
 // may need work!
-function _onSegment(A, B, p, tolerance?: number) {
+function _onSegment(A: Point, B: Point, p: Point, tolerance?: number) {
   if (!tolerance) {
     tolerance = TOL
   }
@@ -100,19 +117,19 @@ function _onSegment(A, B, p, tolerance?: number) {
     return false
   }
 
-  var cross = (p.y - A.y) * (B.x - A.x) - (p.x - A.x) * (B.y - A.y)
+  const cross = (p.y - A.y) * (B.x - A.x) - (p.x - A.x) * (B.y - A.y)
 
   if (Math.abs(cross) > tolerance) {
     return false
   }
 
-  var dot = (p.x - A.x) * (B.x - A.x) + (p.y - A.y) * (B.y - A.y)
+  const dot = (p.x - A.x) * (B.x - A.x) + (p.y - A.y) * (B.y - A.y)
 
   if (dot < 0 || _almostEqual(dot, 0, tolerance)) {
     return false
   }
 
-  var len2 = (B.x - A.x) * (B.x - A.x) + (B.y - A.y) * (B.y - A.y)
+  const len2 = (B.x - A.x) * (B.x - A.x) + (B.y - A.y) * (B.y - A.y)
 
   if (dot > len2 || _almostEqual(dot, len2, tolerance)) {
     return false
@@ -125,18 +142,17 @@ function _onSegment(A, B, p, tolerance?: number) {
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
 function _lineIntersect(A, B, E, F, infinite: boolean = false) {
-  var a1, a2, b1, b2, c1, c2, x, y
+  const a1 = B.y - A.y
+  const b1 = A.x - B.x
+  const c1 = B.x * A.y - A.x * B.y
+  const a2 = F.y - E.y
+  const b2 = E.x - F.x
+  const c2 = F.x * E.y - E.x * F.y
 
-  a1 = B.y - A.y
-  b1 = A.x - B.x
-  c1 = B.x * A.y - A.x * B.y
-  a2 = F.y - E.y
-  b2 = E.x - F.x
-  c2 = F.x * E.y - E.x * F.y
+  const denom = a1 * b2 - a2 * b1
 
-  var denom = a1 * b2 - a2 * b1
-
-    ; (x = (b1 * c2 - b2 * c1) / denom), (y = (a2 * c1 - a1 * c2) / denom)
+  const x = (b1 * c2 - b2 * c1) / denom
+  const y = (a2 * c1 - a1 * c2) / denom
 
   if (!isFinite(x) || !isFinite(y)) {
     return null
@@ -172,12 +188,12 @@ const GeometryUtil = {
   lineIntersect: _lineIntersect,
 
   almostEqual: _almostEqual,
-  almostEqualPoints: function (a, b, tolerance?: number) {
+  almostEqualPoints: function (a: Point, b: Point, tolerance?: number) {
     if (!tolerance) {
       tolerance = TOL
     }
-    var aa = a.x - b.x
-    var bb = a.y - b.y
+    const aa = a.x - b.x
+    const bb = a.y - b.y
 
     if (aa * aa + bb * bb < tolerance * tolerance) {
       return true
@@ -188,33 +204,33 @@ const GeometryUtil = {
   // Bezier algos from http://algorithmist.net/docs/subdivision.pdf
   QuadraticBezier: {
     // Roger Willcocks bezier flatness criterion
-    isFlat: function (p1, p2, c1, tol) {
+    isFlat: function (p1: Point, p2: Point, c1: Point, tol: number) {
       tol = 4 * tol * tol
 
-      var ux = 2 * c1.x - p1.x - p2.x
+      let ux = 2 * c1.x - p1.x - p2.x
       ux *= ux
 
-      var uy = 2 * c1.y - p1.y - p2.y
+      let uy = 2 * c1.y - p1.y - p2.y
       uy *= uy
 
       return ux + uy <= tol
     },
 
     // turn Bezier into line segments via de Casteljau, returns an array of points
-    linearize: function (p1, p2, c1, tol) {
-      var finished = [p1] // list of points to return
-      var todo = [{ p1: p1, p2: p2, c1: c1 }] // list of Beziers to divide
+    linearize: function (p1: Point, p2: Point, c1: Point, tol: number) {
+      const finished = [p1] // list of points to return
+      const todo = [{ p1: p1, p2: p2, c1: c1 }] // list of Beziers to divide
 
       // recursion could stack overflow, loop instead
       while (todo.length > 0) {
-        var segment = todo[0]
+        const segment = todo[0]
 
         if (this.isFlat(segment.p1, segment.p2, segment.c1, tol)) {
           // reached subdivision limit
           finished.push({ x: segment.p2.x, y: segment.p2.y })
           todo.shift()
         } else {
-          var divided = this.subdivide(segment.p1, segment.p2, segment.c1, 0.5)
+          const divided = this.subdivide(segment.p1, segment.p2, segment.c1, 0.5)
           todo.splice(0, 1, divided[0], divided[1])
         }
       }
@@ -223,43 +239,43 @@ const GeometryUtil = {
 
     // subdivide a single Bezier
     // t is the percent along the Bezier to divide at. eg. 0.5
-    subdivide: function (p1, p2, c1, t) {
-      var mid1 = {
+    subdivide: function (p1: Point, p2: Point, c1: Point, t: number) {
+      const mid1: Point = {
         x: p1.x + (c1.x - p1.x) * t,
         y: p1.y + (c1.y - p1.y) * t
       }
 
-      var mid2 = {
+      const mid2: Point = {
         x: c1.x + (p2.x - c1.x) * t,
         y: c1.y + (p2.y - c1.y) * t
       }
 
-      var mid3 = {
+      const mid3: Point = {
         x: mid1.x + (mid2.x - mid1.x) * t,
         y: mid1.y + (mid2.y - mid1.y) * t
       }
 
-      var seg1 = { p1: p1, p2: mid3, c1: mid1 }
-      var seg2 = { p1: mid3, p2: p2, c1: mid2 }
+      const seg1 = { p1: p1, p2: mid3, c1: mid1 }
+      const seg2 = { p1: mid3, p2: p2, c1: mid2 }
 
       return [seg1, seg2]
     }
   },
 
   CubicBezier: {
-    isFlat: function (p1, p2, c1, c2, tol) {
+    isFlat: function (p1: Point, p2: Point, c1: Point, c2: Point, tol: number) {
       tol = 16 * tol * tol
 
-      var ux = 3 * c1.x - 2 * p1.x - p2.x
+      let ux = 3 * c1.x - 2 * p1.x - p2.x
       ux *= ux
 
-      var uy = 3 * c1.y - 2 * p1.y - p2.y
+      let uy = 3 * c1.y - 2 * p1.y - p2.y
       uy *= uy
 
-      var vx = 3 * c2.x - 2 * p2.x - p1.x
+      let vx = 3 * c2.x - 2 * p2.x - p1.x
       vx *= vx
 
-      var vy = 3 * c2.y - 2 * p2.y - p1.y
+      let vy = 3 * c2.y - 2 * p2.y - p1.y
       vy *= vy
 
       if (ux < vx) {
@@ -272,78 +288,78 @@ const GeometryUtil = {
       return ux + uy <= tol
     },
 
-    linearize: function (p1, p2, c1, c2, tol) {
-      var finished = [p1] // list of points to return
-      var todo = [{ p1: p1, p2: p2, c1: c1, c2: c2 }] // list of Beziers to divide
+    linearize: function (p1: Point, p2: Point, c1: Point, c2: Point, tol: number) {
+      const finished = [p1] // list of points to return
+      const todo = [{ p1: p1, p2: p2, c1: c1, c2: c2 }] // list of Beziers to divide
 
       // recursion could stack overflow, loop instead
 
       while (todo.length > 0) {
-        var segment = todo[0]
+        const segment = todo[0]
 
         if (this.isFlat(segment.p1, segment.p2, segment.c1, segment.c2, tol)) {
           // reached subdivision limit
           finished.push({ x: segment.p2.x, y: segment.p2.y })
           todo.shift()
         } else {
-          var divided = this.subdivide(segment.p1, segment.p2, segment.c1, segment.c2, 0.5)
+          const divided = this.subdivide(segment.p1, segment.p2, segment.c1, segment.c2, 0.5)
           todo.splice(0, 1, divided[0], divided[1])
         }
       }
       return finished
     },
 
-    subdivide: function (p1, p2, c1, c2, t) {
-      var mid1 = {
+    subdivide: function (p1: Point, p2: Point, c1: Point, c2: Point, t: number) {
+      const mid1 = {
         x: p1.x + (c1.x - p1.x) * t,
         y: p1.y + (c1.y - p1.y) * t
       }
 
-      var mid2 = {
+      const mid2 = {
         x: c2.x + (p2.x - c2.x) * t,
         y: c2.y + (p2.y - c2.y) * t
       }
 
-      var mid3 = {
+      const mid3 = {
         x: c1.x + (c2.x - c1.x) * t,
         y: c1.y + (c2.y - c1.y) * t
       }
 
-      var mida = {
+      const mida = {
         x: mid1.x + (mid3.x - mid1.x) * t,
         y: mid1.y + (mid3.y - mid1.y) * t
       }
 
-      var midb = {
+      const midb = {
         x: mid3.x + (mid2.x - mid3.x) * t,
         y: mid3.y + (mid2.y - mid3.y) * t
       }
 
-      var midx = {
+      const midx = {
         x: mida.x + (midb.x - mida.x) * t,
         y: mida.y + (midb.y - mida.y) * t
       }
 
-      var seg1 = { p1: p1, p2: midx, c1: mid1, c2: mida }
-      var seg2 = { p1: midx, p2: p2, c1: midb, c2: mid2 }
+      const seg1 = { p1: p1, p2: midx, c1: mid1, c2: mida }
+      const seg2 = { p1: midx, p2: p2, c1: midb, c2: mid2 }
 
       return [seg1, seg2]
     }
   },
 
   Arc: {
-    linearize: function (p1, p2, rx, ry, angle, largearc, sweep, tol) {
-      var finished = [p2] // list of points to return
+    linearize: function (p1: Point, p2: Point, rx: number, ry: number, angle: number, largearc: number, sweep: number, tol: number) {
+      const finished = [p2] // list of points to return
 
-      var arc = this.svgToCenter(p1, p2, rx, ry, angle, largearc, sweep)
-      var todo = [arc] // list of arcs to divide
+      let arc = this.svgToCenter(p1, p2, rx, ry, angle, largearc, sweep)
+      const todo = [arc] // list of arcs to divide
 
       // recursion could stack overflow, loop instead
       while (todo.length > 0) {
         arc = todo[0]
 
-        var fullarc = this.centerToSvg(arc.center, arc.rx, arc.ry, arc.theta, arc.extent, arc.angle)
-        var subarc = this.centerToSvg(
+        const fullarc = this.centerToSvg(arc.center, arc.rx, arc.ry, arc.theta, arc.extent, arc.angle)
+        const subarc = this.centerToSvg(
           arc.center,
           arc.rx,
           arc.ry,
@@ -351,9 +367,9 @@ const GeometryUtil = {
           0.5 * arc.extent,
           arc.angle
         )
-        var arcmid = subarc.p2
+        const arcmid = subarc.p2
 
-        var mid = {
+        const mid = {
           x: 0.5 * (fullarc.p1.x + fullarc.p2.x),
           y: 0.5 * (fullarc.p1.y + fullarc.p2.y)
         }
@@ -364,7 +380,7 @@ const GeometryUtil = {
           finished.unshift(fullarc.p2)
           todo.shift()
         } else {
-          var arc1 = {
+          const arc1 = {
             center: arc.center,
             rx: arc.rx,
             ry: arc.ry,
@@ -372,7 +388,7 @@ const GeometryUtil = {
             extent: 0.5 * arc.extent,
             angle: arc.angle
           }
-          var arc2 = {
+          const arc2 = {
             center: arc.center,
             rx: arc.rx,
             ry: arc.ry,
@@ -388,30 +404,30 @@ const GeometryUtil = {
 
     // convert from center point/angle sweep definition to SVG point and flag definition of arcs
     // ported from http://commons.oreilly.com/wiki/index.php/SVG_Essentials/Paths
-    centerToSvg: function (center, rx, ry, theta1, extent, angleDegrees) {
-      var theta2 = theta1 + extent
+    centerToSvg: function (center: Point, rx: number, ry: number, theta1: number, extent: number, angleDegrees: number) {
+      let theta2 = theta1 + extent
 
       theta1 = _degreesToRadians(theta1)
       theta2 = _degreesToRadians(theta2)
-      var angle = _degreesToRadians(angleDegrees)
+      const angle = _degreesToRadians(angleDegrees)
 
-      var cos = Math.cos(angle)
-      var sin = Math.sin(angle)
+      const cos = Math.cos(angle)
+      const sin = Math.sin(angle)
 
-      var t1cos = Math.cos(theta1)
-      var t1sin = Math.sin(theta1)
+      const t1cos = Math.cos(theta1)
+      const t1sin = Math.sin(theta1)
 
-      var t2cos = Math.cos(theta2)
-      var t2sin = Math.sin(theta2)
+      const t2cos = Math.cos(theta2)
+      const t2sin = Math.sin(theta2)
 
-      var x0 = center.x + cos * rx * t1cos + -sin * ry * t1sin
-      var y0 = center.y + sin * rx * t1cos + cos * ry * t1sin
+      const x0 = center.x + cos * rx * t1cos + -sin * ry * t1sin
+      const y0 = center.y + sin * rx * t1cos + cos * ry * t1sin
 
-      var x1 = center.x + cos * rx * t2cos + -sin * ry * t2sin
-      var y1 = center.y + sin * rx * t2cos + cos * ry * t2sin
+      const x1 = center.x + cos * rx * t2cos + -sin * ry * t2sin
+      const y1 = center.y + sin * rx * t2cos + cos * ry * t2sin
 
-      var largearc = extent > 180 ? 1 : 0
-      var sweep = extent > 0 ? 1 : 0
+      const largearc = extent > 180 ? 1 : 0
+      const sweep = extent > 0 ? 1 : 0
 
       return {
         p1: { x: x0, y: y0 },
@@ -425,34 +441,34 @@ const GeometryUtil = {
     },
 
     // convert from SVG format arc to center point arc
-    svgToCenter: function (p1, p2, rx, ry, angleDegrees, largearc, sweep) {
-      var mid = {
+    svgToCenter: function (p1: Point, p2: Point, rx: number, ry: number, angleDegrees: number, largearc: number, sweep: number) {
+      const mid = {
         x: 0.5 * (p1.x + p2.x),
         y: 0.5 * (p1.y + p2.y)
       }
 
-      var diff = {
+      const diff = {
         x: 0.5 * (p2.x - p1.x),
         y: 0.5 * (p2.y - p1.y)
       }
 
-      var angle = _degreesToRadians(angleDegrees % 360)
+      const angle = _degreesToRadians(angleDegrees % 360)
 
-      var cos = Math.cos(angle)
-      var sin = Math.sin(angle)
+      const cos = Math.cos(angle)
+      const sin = Math.sin(angle)
 
-      var x1 = cos * diff.x + sin * diff.y
-      var y1 = -sin * diff.x + cos * diff.y
+      const x1 = cos * diff.x + sin * diff.y
+      const y1 = -sin * diff.x + cos * diff.y
 
       rx = Math.abs(rx)
       ry = Math.abs(ry)
-      var Prx = rx * rx
-      var Pry = ry * ry
-      var Px1 = x1 * x1
-      var Py1 = y1 * y1
+      let Prx = rx * rx
+      let Pry = ry * ry
+      const Px1 = x1 * x1
+      const Py1 = y1 * y1
 
-      var radiiCheck = Px1 / Prx + Py1 / Pry
-      var radiiSqrt = Math.sqrt(radiiCheck)
+      const radiiCheck = Px1 / Prx + Py1 / Pry
+      const radiiSqrt = Math.sqrt(radiiCheck)
       if (radiiCheck > 1) {
         rx = radiiSqrt * rx
         ry = radiiSqrt * ry
@@ -460,33 +476,33 @@ const GeometryUtil = {
         Pry = ry * ry
       }
 
-      var sign = largearc != sweep ? -1 : 1
-      var sq = (Prx * Pry - Prx * Py1 - Pry * Px1) / (Prx * Py1 + Pry * Px1)
+      let sign = largearc != sweep ? -1 : 1
+      let sq = (Prx * Pry - Prx * Py1 - Pry * Px1) / (Prx * Py1 + Pry * Px1)
 
       sq = sq < 0 ? 0 : sq
 
-      var coef = sign * Math.sqrt(sq)
-      var cx1 = coef * ((rx * y1) / ry)
-      var cy1 = coef * -((ry * x1) / rx)
+      const coef = sign * Math.sqrt(sq)
+      const cx1 = coef * ((rx * y1) / ry)
+      const cy1 = coef * -((ry * x1) / rx)
 
-      var cx = mid.x + (cos * cx1 - sin * cy1)
-      var cy = mid.y + (sin * cx1 + cos * cy1)
+      const cx = mid.x + (cos * cx1 - sin * cy1)
+      const cy = mid.y + (sin * cx1 + cos * cy1)
 
-      var ux = (x1 - cx1) / rx
-      var uy = (y1 - cy1) / ry
-      var vx = (-x1 - cx1) / rx
-      var vy = (-y1 - cy1) / ry
-      var n = Math.sqrt(ux * ux + uy * uy)
-      var p = ux
+      const ux = (x1 - cx1) / rx
+      const uy = (y1 - cy1) / ry
+      const vx = (-x1 - cx1) / rx
+      const vy = (-y1 - cy1) / ry
+      let n = Math.sqrt(ux * ux + uy * uy)
+      let p = ux
       sign = uy < 0 ? -1 : 1
 
-      var theta = sign * Math.acos(p / n)
+      let theta = sign * Math.acos(p / n)
       theta = _radiansToDegrees(theta)
 
       n = Math.sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy))
       p = ux * vx + uy * vy
       sign = ux * vy - uy * vx < 0 ? -1 : 1
-      var delta = sign * Math.acos(p / n)
+      let delta = sign * Math.acos(p / n)
       delta = _radiansToDegrees(delta)
 
       if (sweep == 1 && delta > 0) {
@@ -510,17 +526,17 @@ const GeometryUtil = {
   },
 
   // returns the rectangular bounding box of the given polygon
-  getPolygonBounds: function (polygon) {
+  getPolygonBounds: function (polygon: Polygon) {
     if (!polygon || polygon.length < 3) {
       return null
     }
 
-    var xmin = polygon[0].x
-    var xmax = polygon[0].x
-    var ymin = polygon[0].y
-    var ymax = polygon[0].y
+    let xmin = polygon[0].x
+    let xmax = polygon[0].x
+    let ymin = polygon[0].y
+    let ymax = polygon[0].y
 
-    for (var i = 1; i < polygon.length; i++) {
+    for (let i = 1; i < polygon.length; i++) {
       if (polygon[i].x > xmax) {
         xmax = polygon[i].x
       } else if (polygon[i].x < xmin) {
@@ -543,7 +559,7 @@ const GeometryUtil = {
   },
 
   // return true if point is in the polygon, false if outside, and null if exactly on a point or edge
-  pointInPolygon: function (point, polygon, tolerance) {
+  pointInPolygon: function (point: Point, polygon: Polygon, tolerance?: number) {
     if (!polygon || polygon.length < 3) {
       return null
     }
@@ -552,15 +568,15 @@ const GeometryUtil = {
       tolerance = TOL
     }
 
-    var inside = false
-    var offsetx = polygon.offsetx || 0
-    var offsety = polygon.offsety || 0
+    let inside = false
+    const offsetx = polygon.offsetx || 0
+    const offsety = polygon.offsety || 0
 
-    for (var i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      var xi = polygon[i].x + offsetx
-      var yi = polygon[i].y + offsety
-      var xj = polygon[j].x + offsetx
-      var yj = polygon[j].y + offsety
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x + offsetx
+      const yi = polygon[i].y + offsety
+      const xj = polygon[j].x + offsetx
+      const yj = polygon[j].y + offsety
 
       if (_almostEqual(xi, point.x, tolerance) && _almostEqual(yi, point.y, tolerance)) {
         return null // no result
@@ -575,7 +591,7 @@ const GeometryUtil = {
         continue
       }
 
-      var intersect =
+      const intersect =
         yi > point.y != yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi
       if (intersect) inside = !inside
     }
@@ -585,39 +601,41 @@ const GeometryUtil = {
 
   // returns the area of the polygon, assuming no self-intersections
   // a negative area indicates counter-clockwise winding direction
-  polygonArea: function (polygon) {
-    var area = 0
-    var i, j
+  polygonArea: function (polygon: Polygon) {
+    let area: number = 0
+    let i: number, j: number
     for (i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
       area += (polygon[j].x + polygon[i].x) * (polygon[j].y - polygon[i].y)
     }
     return 0.5 * area
   },
 
-  // todo: swap this for a more efficient sweep-line implementation
+  // TODO: swap this for a more efficient sweep-line implementation
+  // returns true if the two polygons intersect
+  // returnEdges: never implemented in the original code
   // returnEdges: if set, return all edges on A that have intersections
 
-  intersect: function (A, B) {
-    var Aoffsetx = A.offsetx || 0
-    var Aoffsety = A.offsety || 0
+  intersect: function (A: Polygon, B: Polygon) {
+    const Aoffsetx = A.offsetx || 0
+    const Aoffsety = A.offsety || 0
 
-    var Boffsetx = B.offsetx || 0
-    var Boffsety = B.offsety || 0
+    const Boffsetx = B.offsetx || 0
+    const Boffsety = B.offsety || 0
 
     A = A.slice(0)
     B = B.slice(0)
 
-    for (var i = 0; i < A.length - 1; i++) {
-      for (var j = 0; j < B.length - 1; j++) {
-        var a1 = { x: A[i].x + Aoffsetx, y: A[i].y + Aoffsety }
-        var a2 = { x: A[i + 1].x + Aoffsetx, y: A[i + 1].y + Aoffsety }
-        var b1 = { x: B[j].x + Boffsetx, y: B[j].y + Boffsety }
-        var b2 = { x: B[j + 1].x + Boffsetx, y: B[j + 1].y + Boffsety }
+    for (let i = 0; i < A.length - 1; i++) {
+      for (let j = 0; j < B.length - 1; j++) {
+        const a1 = { x: A[i].x + Aoffsetx, y: A[i].y + Aoffsety }
+        const a2 = { x: A[i + 1].x + Aoffsetx, y: A[i + 1].y + Aoffsety }
+        const b1 = { x: B[j].x + Boffsetx, y: B[j].y + Boffsety }
+        const b2 = { x: B[j + 1].x + Boffsetx, y: B[j + 1].y + Boffsety }
 
-        var prevbindex = j == 0 ? B.length - 1 : j - 1
-        var prevaindex = i == 0 ? A.length - 1 : i - 1
-        var nextbindex = j + 1 == B.length - 1 ? 0 : j + 2
-        var nextaindex = i + 1 == A.length - 1 ? 0 : i + 2
+        let prevbindex = j == 0 ? B.length - 1 : j - 1
+        let prevaindex = i == 0 ? A.length - 1 : i - 1
+        let nextbindex = j + 1 == B.length - 1 ? 0 : j + 2
+        let nextaindex = i + 1 == A.length - 1 ? 0 : i + 2
 
         // go even further back if we happen to hit on a loop end point
         if (
@@ -649,28 +667,28 @@ const GeometryUtil = {
           nextaindex = nextaindex == A.length - 1 ? 0 : nextaindex + 1
         }
 
-        var a0 = {
+        const a0 = {
           x: A[prevaindex].x + Aoffsetx,
           y: A[prevaindex].y + Aoffsety
         }
-        var b0 = {
+        const b0 = {
           x: B[prevbindex].x + Boffsetx,
           y: B[prevbindex].y + Boffsety
         }
 
-        var a3 = {
+        const a3 = {
           x: A[nextaindex].x + Aoffsetx,
           y: A[nextaindex].y + Aoffsety
         }
-        var b3 = {
+        const b3 = {
           x: B[nextbindex].x + Boffsetx,
           y: B[nextbindex].y + Boffsety
         }
 
         if (_onSegment(a1, a2, b1) || (_almostEqual(a1.x, b1.x) && _almostEqual(a1.y, b1.y))) {
           // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-          var b0in = this.pointInPolygon(b0, A)
-          var b2in = this.pointInPolygon(b2, A)
+          const b0in = this.pointInPolygon(b0, A)
+          const b2in = this.pointInPolygon(b2, A)
           if ((b0in === true && b2in === false) || (b0in === false && b2in === true)) {
             return true
           } else {
@@ -680,8 +698,8 @@ const GeometryUtil = {
 
         if (_onSegment(a1, a2, b2) || (_almostEqual(a2.x, b2.x) && _almostEqual(a2.y, b2.y))) {
           // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-          var b1in = this.pointInPolygon(b1, A)
-          var b3in = this.pointInPolygon(b3, A)
+          const b1in = this.pointInPolygon(b1, A)
+          const b3in = this.pointInPolygon(b3, A)
 
           if ((b1in === true && b3in === false) || (b1in === false && b3in === true)) {
             return true
@@ -692,8 +710,8 @@ const GeometryUtil = {
 
         if (_onSegment(b1, b2, a1) || (_almostEqual(a1.x, b2.x) && _almostEqual(a1.y, b2.y))) {
           // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-          var a0in = this.pointInPolygon(a0, B)
-          var a2in = this.pointInPolygon(a2, B)
+          const a0in = this.pointInPolygon(a0, B)
+          const a2in = this.pointInPolygon(a2, B)
 
           if ((a0in === true && a2in === false) || (a0in === false && a2in === true)) {
             return true
@@ -704,8 +722,8 @@ const GeometryUtil = {
 
         if (_onSegment(b1, b2, a2) || (_almostEqual(a2.x, b1.x) && _almostEqual(a2.y, b1.y))) {
           // if a point is on a segment, it could intersect or it could not. Check via the neighboring points
-          var a1in = this.pointInPolygon(a1, B)
-          var a3in = this.pointInPolygon(a3, B)
+          const a1in = this.pointInPolygon(a1, B)
+          const a3in = this.pointInPolygon(a3, B)
 
           if ((a1in === true && a3in === false) || (a1in === false && a3in === true)) {
             return true
@@ -714,7 +732,7 @@ const GeometryUtil = {
           }
         }
 
-        var p = _lineIntersect(b1, b2, a1, a2)
+        const p = _lineIntersect(b1, b2, a1, a2)
 
         if (p !== null) {
           return true
@@ -730,26 +748,26 @@ const GeometryUtil = {
   // returns a continuous polyline representing the normal-most edge of the given polygon
   // eg. a normal vector of [-1, 0] will return the left-most edge of the polygon
   // this is essentially algo 8 in [1], generalized for any vector direction
-  polygonEdge: function (polygon, normal) {
+  polygonEdge: function (polygon: Polygon, normal: Point) {
     if (!polygon || polygon.length < 3) {
       return null
     }
 
     normal = _normalizeVector(normal)
 
-    var direction = {
+    const direction = {
       x: -normal.y,
       y: normal.x
     }
 
     // find the max and min points, they will be the endpoints of our edge
-    var min = null
-    var max = null
+    let min = null
+    let max = null
 
-    var dotproduct = []
+    const dotproduct = []
 
-    for (var i = 0; i < polygon.length; i++) {
-      var dot = polygon[i].x * direction.x + polygon[i].y * direction.y
+    for (let i = 0; i < polygon.length; i++) {
+      const dot = polygon[i].x * direction.x + polygon[i].y * direction.y
       dotproduct.push(dot)
       if (min === null || dot < min) {
         min = dot
@@ -760,21 +778,21 @@ const GeometryUtil = {
     }
 
     // there may be multiple vertices with min/max values. In which case we choose the one that is normal-most (eg. left most)
-    var indexmin = 0
-    var indexmax = 0
+    let indexmin = 0
+    let indexmax = 0
 
-    var normalmin = null
-    var normalmax = null
+    let normalmin = null
+    let normalmax = null
 
-    for (i = 0; i < polygon.length; i++) {
+    for (let i = 0; i < polygon.length; i++) {
       if (_almostEqual(dotproduct[i], min)) {
-        let dot = polygon[i].x * normal.x + polygon[i].y * normal.y
+        const dot = polygon[i].x * normal.x + polygon[i].y * normal.y
         if (normalmin === null || dot > normalmin) {
           normalmin = dot
           indexmin = i
         }
       } else if (_almostEqual(dotproduct[i], max)) {
-        let dot = polygon[i].x * normal.x + polygon[i].y * normal.y
+        const dot = polygon[i].x * normal.x + polygon[i].y * normal.y
         if (normalmax === null || dot > normalmax) {
           normalmax = dot
           indexmax = i
@@ -784,8 +802,8 @@ const GeometryUtil = {
 
     // now we have two edges bound by min and max points, figure out which edge faces our direction vector
 
-    var indexleft = indexmin - 1
-    var indexright = indexmin + 1
+    let indexleft = indexmin - 1
+    let indexright = indexmin + 1
 
     if (indexleft < 0) {
       indexleft = polygon.length - 1
@@ -794,33 +812,33 @@ const GeometryUtil = {
       indexright = 0
     }
 
-    var minvertex = polygon[indexmin]
-    var left = polygon[indexleft]
-    var right = polygon[indexright]
+    const minvertex = polygon[indexmin]
+    const left = polygon[indexleft]
+    const right = polygon[indexright]
 
-    var leftvector = {
+    const leftvector = {
       x: left.x - minvertex.x,
       y: left.y - minvertex.y
     }
 
-    var rightvector = {
+    const rightvector = {
       x: right.x - minvertex.x,
       y: right.y - minvertex.y
     }
 
-    var dotleft = leftvector.x * direction.x + leftvector.y * direction.y
-    var dotright = rightvector.x * direction.x + rightvector.y * direction.y
+    const dotleft = leftvector.x * direction.x + leftvector.y * direction.y
+    const dotright = rightvector.x * direction.x + rightvector.y * direction.y
 
     // -1 = left, 1 = right
-    var scandirection = -1
+    let scandirection = -1
 
     if (_almostEqual(dotleft, 0)) {
       scandirection = 1
     } else if (_almostEqual(dotright, 0)) {
       scandirection = -1
     } else {
-      var normaldotleft
-      var normaldotright
+      let normaldotleft
+      let normaldotright
 
       if (_almostEqual(dotleft, dotright)) {
         // the points line up exactly along the normal vector
@@ -848,9 +866,9 @@ const GeometryUtil = {
     }
 
     // connect all points between indexmin and indexmax along the scan direction
-    var edge = []
-    var count = 0
-    i = indexmin
+    const edge = []
+    let count = 0
+    let i = indexmin
     while (count < polygon.length) {
       if (i >= polygon.length) {
         i = 0
@@ -875,21 +893,21 @@ const GeometryUtil = {
   // eg. normal of [-1, 0] returns the horizontal distance between the point and the line segment
   // sxinclusive: if true, include endpoints instead of excluding them
 
-  pointLineDistance: function (p, s1, s2, normal, s1inclusive, s2inclusive) {
+  pointLineDistance: function (p: Point, s1: Point, s2: Point, normal: Point, s1inclusive: boolean, s2inclusive: boolean) {
     normal = _normalizeVector(normal)
 
-    var dir = {
+    const dir = {
       x: normal.y,
       y: -normal.x
     }
 
-    var pdot = p.x * dir.x + p.y * dir.y
-    var s1dot = s1.x * dir.x + s1.y * dir.y
-    var s2dot = s2.x * dir.x + s2.y * dir.y
+    const pdot = p.x * dir.x + p.y * dir.y
+    const s1dot = s1.x * dir.x + s1.y * dir.y
+    const s2dot = s2.x * dir.x + s2.y * dir.y
 
-    var pdotnorm = p.x * normal.x + p.y * normal.y
-    var s1dotnorm = s1.x * normal.x + s1.y * normal.y
-    var s2dotnorm = s2.x * normal.x + s2.y * normal.y
+    const pdotnorm = p.x * normal.x + p.y * normal.y
+    const s1dotnorm = s1.x * normal.x + s1.y * normal.y
+    const s2dotnorm = s2.x * normal.x + s2.y * normal.y
 
     // point is exactly along the edge in the normal direction
     if (_almostEqual(pdot, s1dot) && _almostEqual(pdot, s2dot)) {
@@ -911,8 +929,8 @@ const GeometryUtil = {
       }
 
       // point lies between endpoints
-      var diff1 = pdotnorm - s1dotnorm
-      var diff2 = pdotnorm - s2dotnorm
+      const diff1 = pdotnorm - s1dotnorm
+      const diff2 = pdotnorm - s2dotnorm
       if (diff1 > 0) {
         return diff1
       } else {
@@ -939,21 +957,21 @@ const GeometryUtil = {
     return pdotnorm - s1dotnorm + ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot)
   },
 
-  pointDistance: function (p, s1, s2, normal, infinite) {
+  pointDistance: function (p: Point, s1: Point, s2: Point, normal: Point, infinite: boolean) {
     normal = _normalizeVector(normal)
 
-    var dir = {
+    const dir = {
       x: normal.y,
       y: -normal.x
     }
 
-    var pdot = p.x * dir.x + p.y * dir.y
-    var s1dot = s1.x * dir.x + s1.y * dir.y
-    var s2dot = s2.x * dir.x + s2.y * dir.y
+    const pdot = p.x * dir.x + p.y * dir.y
+    const s1dot = s1.x * dir.x + s1.y * dir.y
+    const s2dot = s2.x * dir.x + s2.y * dir.y
 
-    var pdotnorm = p.x * normal.x + p.y * normal.y
-    var s1dotnorm = s1.x * normal.x + s1.y * normal.y
-    var s2dotnorm = s2.x * normal.x + s2.y * normal.y
+    const pdotnorm = p.x * normal.x + p.y * normal.y
+    const s1dotnorm = s1.x * normal.x + s1.y * normal.y
+    const s2dotnorm = s2.x * normal.x + s2.y * normal.y
 
     if (!infinite) {
       if (
@@ -984,38 +1002,38 @@ const GeometryUtil = {
     return -(pdotnorm - s1dotnorm + ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot))
   },
 
-  segmentDistance: function (A, B, E, F, direction) {
-    var normal = {
+  segmentDistance: function (A: Point, B: Point, E: Point, F: Point, direction: Point) {
+    const normal = {
       x: direction.y,
       y: -direction.x
     }
 
-    var reverse = {
+    const reverse = {
       x: -direction.x,
       y: -direction.y
     }
 
-    var dotA = A.x * normal.x + A.y * normal.y
-    var dotB = B.x * normal.x + B.y * normal.y
-    var dotE = E.x * normal.x + E.y * normal.y
-    var dotF = F.x * normal.x + F.y * normal.y
+    const dotA = A.x * normal.x + A.y * normal.y
+    const dotB = B.x * normal.x + B.y * normal.y
+    const dotE = E.x * normal.x + E.y * normal.y
+    const dotF = F.x * normal.x + F.y * normal.y
 
-    var crossA = A.x * direction.x + A.y * direction.y
-    var crossB = B.x * direction.x + B.y * direction.y
-    var crossE = E.x * direction.x + E.y * direction.y
-    var crossF = F.x * direction.x + F.y * direction.y
+    const crossA = A.x * direction.x + A.y * direction.y
+    const crossB = B.x * direction.x + B.y * direction.y
+    const crossE = E.x * direction.x + E.y * direction.y
+    const crossF = F.x * direction.x + F.y * direction.y
 
-    var crossABmin = Math.min(crossA, crossB)
-    var crossABmax = Math.max(crossA, crossB)
+    const crossABmin = Math.min(crossA, crossB)
+    const crossABmax = Math.max(crossA, crossB)
 
-    var crossEFmax = Math.max(crossE, crossF)
-    var crossEFmin = Math.min(crossE, crossF)
+    const crossEFmax = Math.max(crossE, crossF)
+    const crossEFmin = Math.min(crossE, crossF)
 
-    var ABmin = Math.min(dotA, dotB)
-    var ABmax = Math.max(dotA, dotB)
+    const ABmin = Math.min(dotA, dotB)
+    const ABmax = Math.max(dotA, dotB)
 
-    var EFmax = Math.max(dotE, dotF)
-    var EFmin = Math.min(dotE, dotF)
+    const EFmax = Math.max(dotE, dotF)
+    const EFmin = Math.min(dotE, dotF)
 
     // segments that will merely touch at one point
     if (_almostEqual(ABmax, EFmin, TOL) || _almostEqual(ABmin, EFmax, TOL)) {
@@ -1026,33 +1044,33 @@ const GeometryUtil = {
       return null
     }
 
-    var overlap
+    let overlap
 
     if ((ABmax > EFmax && ABmin < EFmin) || (EFmax > ABmax && EFmin < ABmin)) {
       overlap = 1
     } else {
-      var minMax = Math.min(ABmax, EFmax)
-      var maxMin = Math.max(ABmin, EFmin)
+      const minMax = Math.min(ABmax, EFmax)
+      const maxMin = Math.max(ABmin, EFmin)
 
-      var maxMax = Math.max(ABmax, EFmax)
-      var minMin = Math.min(ABmin, EFmin)
+      const maxMax = Math.max(ABmax, EFmax)
+      const minMin = Math.min(ABmin, EFmin)
 
       overlap = (minMax - maxMin) / (maxMax - minMin)
     }
 
-    var crossABE = (E.y - A.y) * (B.x - A.x) - (E.x - A.x) * (B.y - A.y)
-    var crossABF = (F.y - A.y) * (B.x - A.x) - (F.x - A.x) * (B.y - A.y)
+    const crossABE = (E.y - A.y) * (B.x - A.x) - (E.x - A.x) * (B.y - A.y)
+    const crossABF = (F.y - A.y) * (B.x - A.x) - (F.x - A.x) * (B.y - A.y)
 
     // lines are colinear
     if (_almostEqual(crossABE, 0) && _almostEqual(crossABF, 0)) {
-      var ABnorm = { x: B.y - A.y, y: A.x - B.x }
-      var EFnorm = { x: F.y - E.y, y: E.x - F.x }
+      const ABnorm = { x: B.y - A.y, y: A.x - B.x }
+      const EFnorm = { x: F.y - E.y, y: E.x - F.x }
 
-      var ABnormlength = Math.sqrt(ABnorm.x * ABnorm.x + ABnorm.y * ABnorm.y)
+      const ABnormlength = Math.sqrt(ABnorm.x * ABnorm.x + ABnorm.y * ABnorm.y)
       ABnorm.x /= ABnormlength
       ABnorm.y /= ABnormlength
 
-      var EFnormlength = Math.sqrt(EFnorm.x * EFnorm.x + EFnorm.y * EFnorm.y)
+      const EFnormlength = Math.sqrt(EFnorm.x * EFnorm.x + EFnorm.y * EFnorm.y)
       EFnorm.x /= EFnormlength
       EFnorm.y /= EFnormlength
 
@@ -1062,7 +1080,7 @@ const GeometryUtil = {
         ABnorm.y * EFnorm.y + ABnorm.x * EFnorm.x < 0
       ) {
         // normal of AB segment must point in same direction as given direction vector
-        var normdot = ABnorm.y * direction.y + ABnorm.x * direction.x
+        const normdot = ABnorm.y * direction.y + ABnorm.x * direction.x
         // the segments merely slide along eachother
         if (_almostEqual(normdot, 0, TOL)) {
           return null
@@ -1074,7 +1092,7 @@ const GeometryUtil = {
       return null
     }
 
-    var distances = []
+    const distances = []
 
     // coincident points
     if (_almostEqual(dotA, dotE)) {
@@ -1085,7 +1103,7 @@ const GeometryUtil = {
       let d = this.pointDistance(A, E, F, reverse)
       if (d !== null && _almostEqual(d, 0)) {
         //  A currently touches EF, but AB is moving away from EF
-        var dB = this.pointDistance(B, E, F, reverse, true)
+        const dB = this.pointDistance(B, E, F, reverse, true)
         if (dB < 0 || _almostEqual(dB * overlap, 0)) {
           d = null
         }
@@ -1104,7 +1122,7 @@ const GeometryUtil = {
 
       if (d !== null && _almostEqual(d, 0)) {
         // crossA>crossB A currently touches EF, but AB is moving away from EF
-        var dA = this.pointDistance(A, E, F, reverse, true)
+        const dA = this.pointDistance(A, E, F, reverse, true)
         if (dA < 0 || _almostEqual(dA * overlap, 0)) {
           d = null
         }
@@ -1118,7 +1136,7 @@ const GeometryUtil = {
       let d = this.pointDistance(E, A, B, direction)
       if (d !== null && _almostEqual(d, 0)) {
         // crossF<crossE A currently touches EF, but AB is moving away from EF
-        var dF = this.pointDistance(F, A, B, direction, true)
+        const dF = this.pointDistance(F, A, B, direction, true)
         if (dF < 0 || _almostEqual(dF * overlap, 0)) {
           d = null
         }
@@ -1132,7 +1150,7 @@ const GeometryUtil = {
       let d = this.pointDistance(F, A, B, direction)
       if (d !== null && _almostEqual(d, 0)) {
         // && crossE<crossF A currently touches EF, but AB is moving away from EF
-        var dE = this.pointDistance(E, A, B, direction, true)
+        const dE = this.pointDistance(E, A, B, direction, true)
         if (dE < 0 || _almostEqual(dE * overlap, 0)) {
           d = null
         }
@@ -1146,17 +1164,17 @@ const GeometryUtil = {
       return null
     }
 
-    return Math.min.apply(Math, distances)
+    return Math.min(...distances)
   },
 
-  polygonSlideDistance: function (A, B, direction, ignoreNegative) {
-    var A1, A2, B1, B2, Aoffsetx, Aoffsety, Boffsetx, Boffsety
+  polygonSlideDistance: function (A: Polygon, B: Polygon, direction: Point, ignoreNegative: boolean) {
+    let A1, A2, B1, B2
 
-    Aoffsetx = A.offsetx || 0
-    Aoffsety = A.offsety || 0
+    const Aoffsetx = A.offsetx || 0
+    const Aoffsety = A.offsety || 0
 
-    Boffsetx = B.offsetx || 0
-    Boffsety = B.offsety || 0
+    const Boffsetx = B.offsetx || 0
+    const Boffsety = B.offsety || 0
 
     A = A.slice(0)
     B = B.slice(0)
@@ -1170,27 +1188,28 @@ const GeometryUtil = {
       B.push(B[0])
     }
 
-    var edgeA = A
-    var edgeB = B
+    const edgeA = A
+    const edgeB = B
 
-    var distance = null
-    var p, s1, s2, d
+    let distance = null
+    //let p, s1, s2, d
+    let d
 
-    var dir = _normalizeVector(direction)
+    const dir = _normalizeVector(direction)
 
-    var normal = {
+    const normal = {
       x: dir.y,
       y: -dir.x
     }
 
-    var reverse = {
+    const reverse = {
       x: -dir.x,
       y: -dir.y
     }
 
-    for (var i = 0; i < edgeB.length - 1; i++) {
-      var mind = null
-      for (var j = 0; j < edgeA.length - 1; j++) {
+    for (let i = 0; i < edgeB.length - 1; i++) {
+      const mind = null
+      for (let j = 0; j < edgeA.length - 1; j++) {
         A1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety }
         A2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety }
         B1 = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety }
@@ -1217,11 +1236,11 @@ const GeometryUtil = {
 
   // project each point of B onto A in the given direction, and return the
   polygonProjectionDistance: function (A, B, direction) {
-    var Boffsetx = B.offsetx || 0
-    var Boffsety = B.offsety || 0
+    const Boffsetx = B.offsetx || 0
+    const Boffsety = B.offsety || 0
 
-    var Aoffsetx = A.offsetx || 0
-    var Aoffsety = A.offsety || 0
+    const Aoffsetx = A.offsetx || 0
+    const Aoffsety = A.offsety || 0
 
     A = A.slice(0)
     B = B.slice(0)
@@ -1235,17 +1254,16 @@ const GeometryUtil = {
       B.push(B[0])
     }
 
-    var edgeA = A
-    var edgeB = B
+    const edgeA = A
+    const edgeB = B
 
-    var distance = null
-    var p, d, s1, s2
+    let distance = null
+    let p, d, s1, s2
 
-    for (var i = 0; i < edgeB.length; i++) {
+    for (let i = 0; i < edgeB.length; i++) {
       // the shortest/most negative projection of B onto A
-      var minprojection = null
-      var minp = null
-      for (var j = 0; j < edgeA.length - 1; j++) {
+      let minprojection = null
+      for (let j = 0; j < edgeA.length - 1; j++) {
         p = { x: edgeB[i].x + Boffsetx, y: edgeB[i].y + Boffsety }
         s1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety }
         s2 = { x: edgeA[j + 1].x + Aoffsetx, y: edgeA[j + 1].y + Aoffsety }
@@ -1259,7 +1277,6 @@ const GeometryUtil = {
 
         if (d !== null && (minprojection === null || d < minprojection)) {
           minprojection = d
-          minp = p
         }
       }
       if (minprojection !== null && (distance === null || minprojection > distance)) {
@@ -1272,7 +1289,7 @@ const GeometryUtil = {
 
   // searches for an arrangement of A and B such that they do not overlap
   // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
-  searchStartPoint: function (A, B, inside, NFP) {
+  searchStartPoint: function (A: Polygon, B: Polygon, inside: boolean, NFP: Polygon[]) {
     // clone arrays
     A = A.slice(0)
     B = B.slice(0)
@@ -1286,16 +1303,16 @@ const GeometryUtil = {
       B.push(B[0])
     }
 
-    for (var i = 0; i < A.length - 1; i++) {
+    for (let i = 0; i < A.length - 1; i++) {
       if (!A[i].marked) {
         A[i].marked = true
-        for (var j = 0; j < B.length; j++) {
+        for (let j = 0; j < B.length; j++) {
           B.offsetx = A[i].x - B[j].x
           B.offsety = A[i].y - B[j].y
 
-          var Binside = null
-          for (var k = 0; k < B.length; k++) {
-            var inpoly = this.pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A)
+          let Binside = null
+          for (let k = 0; k < B.length; k++) {
+            const inpoly = this.pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A)
             if (inpoly !== null) {
               Binside = inpoly
               break
@@ -1307,7 +1324,7 @@ const GeometryUtil = {
             return null
           }
 
-          var startPoint = { x: B.offsetx, y: B.offsety }
+          let startPoint = { x: B.offsetx, y: B.offsety }
           if (
             ((Binside && inside) || (!Binside && !inside)) &&
             !this.intersect(A, B) &&
@@ -1317,13 +1334,13 @@ const GeometryUtil = {
           }
 
           // slide B along vector
-          var vx = A[i + 1].x - A[i].x
-          var vy = A[i + 1].y - A[i].y
+          let vx = A[i + 1].x - A[i].x
+          let vy = A[i + 1].y - A[i].y
 
-          var d1 = this.polygonProjectionDistance(A, B, { x: vx, y: vy })
-          var d2 = this.polygonProjectionDistance(B, A, { x: -vx, y: -vy })
+          const d1 = this.polygonProjectionDistance(A, B, { x: vx, y: vy })
+          const d2 = this.polygonProjectionDistance(B, A, { x: -vx, y: -vy })
 
-          var d = null
+          let d = null
 
           // todo: clean this up
           if (d1 === null && d2 === null) {
@@ -1337,16 +1354,19 @@ const GeometryUtil = {
           }
 
           // only slide until no longer negative
-          // todo: clean this up
-          if (d !== null && !_almostEqual(d, 0) && d > 0) {
-          } else {
+          // TODO: clean this up
+          // if (d !== null && !_almostEqual(d, 0) && d > 0) {
+          // } else {
+          //   continue
+          // }
+          if (d === null || _almostEqual(d, 0) || d <= 0) {
             continue
           }
 
-          var vd2 = vx * vx + vy * vy
+          const vd2 = vx * vx + vy * vy
 
           if (d * d < vd2 && !_almostEqual(d * d, vd2)) {
-            var vd = Math.sqrt(vx * vx + vy * vy)
+            const vd = Math.sqrt(vx * vx + vy * vy)
             vx *= d / vd
             vy *= d / vd
           }
@@ -1354,8 +1374,8 @@ const GeometryUtil = {
           B.offsetx += vx
           B.offsety += vy
 
-          for (k = 0; k < B.length; k++) {
-            let inpoly = this.pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A)
+          for (let k = 0; k < B.length; k++) {
+            const inpoly = this.pointInPolygon({ x: B[k].x + B.offsetx, y: B[k].y + B.offsety }, A)
             if (inpoly !== null) {
               Binside = inpoly
               break
@@ -1374,13 +1394,13 @@ const GeometryUtil = {
     }
 
     // returns true if point already exists in the given nfp
-    function inNfp(p, nfp) {
+    function inNfp(p: Point, nfp: Polygon[]) {
       if (!nfp || nfp.length == 0) {
         return false
       }
 
-      for (var i = 0; i < nfp.length; i++) {
-        for (var j = 0; j < nfp[i].length; j++) {
+      for (let i = 0; i < nfp.length; i++) {
+        for (let j = 0; j < nfp[i].length; j++) {
           if (_almostEqual(p.x, nfp[i][j].x) && _almostEqual(p.y, nfp[i][j].y)) {
             return true
           }
@@ -1393,13 +1413,13 @@ const GeometryUtil = {
     return null
   },
 
-  isRectangle: function (poly, tolerance?: number) {
-    var bb = this.getPolygonBounds(poly)
+  isRectangle: function (poly: Polygon, tolerance?: number) {
+    const bb = this.getPolygonBounds(poly)
     if (!tolerance) {
       tolerance = TOL
     }
 
-    for (var i = 0; i < poly.length; i++) {
+    for (let i = 0; i < poly.length; i++) {
       if (!_almostEqual(poly[i].x, bb.x) && !_almostEqual(poly[i].x, bb.x + bb.width)) {
         return false
       }
@@ -1412,13 +1432,13 @@ const GeometryUtil = {
   },
 
   // returns an interior NFP for the special case where A is a rectangle
-  noFitPolygonRectangle: function (A, B) {
-    var minAx = A[0].x
-    var minAy = A[0].y
-    var maxAx = A[0].x
-    var maxAy = A[0].y
+  noFitPolygonRectangle: function (A: Polygon, B: Polygon) {
+    let minAx = A[0].x
+    let minAy = A[0].y
+    let maxAx = A[0].x
+    let maxAy = A[0].y
 
-    for (var i = 1; i < A.length; i++) {
+    for (let i = 1; i < A.length; i++) {
       if (A[i].x < minAx) {
         minAx = A[i].x
       }
@@ -1433,11 +1453,11 @@ const GeometryUtil = {
       }
     }
 
-    var minBx = B[0].x
-    var minBy = B[0].y
-    var maxBx = B[0].x
-    var maxBy = B[0].y
-    for (i = 1; i < B.length; i++) {
+    let minBx = B[0].x
+    let minBy = B[0].y
+    let maxBx = B[0].x
+    let maxBy = B[0].y
+    for (let i = 1; i < B.length; i++) {
       if (B[i].x < minBx) {
         minBx = B[i].x
       }
@@ -1472,7 +1492,7 @@ const GeometryUtil = {
   // given a static polygon A and a movable polygon B, compute a no fit polygon by orbiting B about A
   // if the inside flag is set, B is orbited inside of A rather than outside
   // if the searchEdges flag is set, all edges of A are explored for NFPs - multiple
-  noFitPolygon: function (A, B, inside, searchEdges) {
+  noFitPolygon: function (A: Polygon, B: Polygon, inside: boolean, searchEdges: boolean) {
     if (!A || A.length < 3 || !B || B.length < 3) {
       return null
     }
@@ -1480,13 +1500,13 @@ const GeometryUtil = {
     A.offsetx = 0
     A.offsety = 0
 
-    var i, j
+    let i: number, j: number
 
-    var minA = A[0].y
-    var minAindex = 0
+    let minA = A[0].y
+    let minAindex = 0
 
-    var maxB = B[0].y
-    var maxBindex = 0
+    let maxB = B[0].y
+    let maxBindex = 0
 
     for (i = 1; i < A.length; i++) {
       A[i].marked = false
@@ -1516,7 +1536,7 @@ const GeometryUtil = {
       startpoint = this.searchStartPoint(A, B, true)
     }
 
-    var NFPlist = []
+    const NFPlist = []
 
     while (startpoint !== null) {
       B.offsetx = startpoint.x
@@ -1525,28 +1545,28 @@ const GeometryUtil = {
       // maintain a list of touching points/edges
       var touching
 
-      var prevvector = null // keep track of previous vector
-      var NFP = [
+      let prevvector = null // keep track of previous vector
+      let NFP = [
         {
           x: B[0].x + B.offsetx,
           y: B[0].y + B.offsety
         }
       ]
 
-      var referencex = B[0].x + B.offsetx
-      var referencey = B[0].y + B.offsety
-      var startx = referencex
-      var starty = referencey
-      var counter = 0
+      let referencex = B[0].x + B.offsetx
+      let referencey = B[0].y + B.offsety
+      const startx = referencex
+      const starty = referencey
+      let counter = 0
 
       while (counter < 10 * (A.length + B.length)) {
         // sanity check, prevent infinite loop
         touching = []
         // find touching vertices/edges
         for (i = 0; i < A.length; i++) {
-          var nexti = i == A.length - 1 ? 0 : i + 1
+          const nexti = i == A.length - 1 ? 0 : i + 1
           for (j = 0; j < B.length; j++) {
-            var nextj = j == B.length - 1 ? 0 : j + 1
+            const nextj = j == B.length - 1 ? 0 : j + 1
             if (
               _almostEqual(A[i].x, B[j].x + B.offsetx) &&
               _almostEqual(A[i].y, B[j].y + B.offsety)
@@ -1572,42 +1592,42 @@ const GeometryUtil = {
         }
 
         // generate translation vectors from touching vertices/edges
-        var vectors = []
+        const vectors = []
         for (i = 0; i < touching.length; i++) {
-          var vertexA = A[touching[i].A]
+          const vertexA = A[touching[i].A]
           vertexA.marked = true
 
           // adjacent A vertices
-          var prevAindex = touching[i].A - 1
-          var nextAindex = touching[i].A + 1
+          let prevAindex = touching[i].A - 1
+          let nextAindex = touching[i].A + 1
 
           prevAindex = prevAindex < 0 ? A.length - 1 : prevAindex // loop
           nextAindex = nextAindex >= A.length ? 0 : nextAindex // loop
 
-          var prevA = A[prevAindex]
-          var nextA = A[nextAindex]
+          const prevA = A[prevAindex]
+          const nextA = A[nextAindex]
 
           // adjacent B vertices
-          var vertexB = B[touching[i].B]
+          const vertexB = B[touching[i].B]
 
-          var prevBindex = touching[i].B - 1
-          var nextBindex = touching[i].B + 1
+          let prevBindex = touching[i].B - 1
+          let nextBindex = touching[i].B + 1
 
           prevBindex = prevBindex < 0 ? B.length - 1 : prevBindex // loop
           nextBindex = nextBindex >= B.length ? 0 : nextBindex // loop
 
-          var prevB = B[prevBindex]
-          var nextB = B[nextBindex]
+          const prevB = B[prevBindex]
+          const nextB = B[nextBindex]
 
           if (touching[i].type == 0) {
-            var vA1 = {
+            const vA1 = {
               x: prevA.x - vertexA.x,
               y: prevA.y - vertexA.y,
               start: vertexA,
               end: prevA
             }
 
-            var vA2 = {
+            const vA2 = {
               x: nextA.x - vertexA.x,
               y: nextA.y - vertexA.y,
               start: vertexA,
@@ -1615,14 +1635,14 @@ const GeometryUtil = {
             }
 
             // B vectors need to be inverted
-            var vB1 = {
+            const vB1 = {
               x: vertexB.x - prevB.x,
               y: vertexB.y - prevB.y,
               start: prevB,
               end: vertexB
             }
 
-            var vB2 = {
+            const vB2 = {
               x: vertexB.x - nextB.x,
               y: vertexB.y - nextB.y,
               start: nextB,
@@ -1666,8 +1686,8 @@ const GeometryUtil = {
 
         // todo: there should be a faster way to reject vectors that will cause immediate intersection. For now just check them all
 
-        var translate = null
-        var maxd = 0
+        let translate = null
+        let maxd = 0
 
         for (i = 0; i < vectors.length; i++) {
           if (vectors[i].x == 0 && vectors[i].y == 0) {
@@ -1678,14 +1698,14 @@ const GeometryUtil = {
           // ie cross product = 0, dot product < 0
           if (prevvector && vectors[i].y * prevvector.y + vectors[i].x * prevvector.x < 0) {
             // compare magnitude with unit vectors
-            var vectorlength = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y)
-            var unitv = {
+            const vectorlength = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y)
+            const unitv = {
               x: vectors[i].x / vectorlength,
               y: vectors[i].y / vectorlength
             }
 
-            var prevlength = Math.sqrt(prevvector.x * prevvector.x + prevvector.y * prevvector.y)
-            var prevunit = {
+            const prevlength = Math.sqrt(prevvector.x * prevvector.x + prevvector.y * prevvector.y)
+            const prevunit = {
               x: prevvector.x / prevlength,
               y: prevvector.y / prevlength
             }
@@ -1696,11 +1716,11 @@ const GeometryUtil = {
             }
           }
 
-          var d = this.polygonSlideDistance(A, B, vectors[i], true)
-          var vecd2 = vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y
+          let d = this.polygonSlideDistance(A, B, vectors[i], true)
+          const vecd2 = vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y
 
           if (d === null || d * d > vecd2) {
-            var vecd = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y)
+            const vecd = Math.sqrt(vectors[i].x * vectors[i].x + vectors[i].y * vectors[i].y)
             d = vecd
           }
 
@@ -1722,9 +1742,9 @@ const GeometryUtil = {
         prevvector = translate
 
         // trim
-        var vlength2 = translate.x * translate.x + translate.y * translate.y
+        const vlength2 = translate.x * translate.x + translate.y * translate.y
         if (maxd * maxd < vlength2 && !_almostEqual(maxd * maxd, vlength2)) {
-          var scale = Math.sqrt((maxd * maxd) / vlength2)
+          const scale = Math.sqrt((maxd * maxd) / vlength2)
           translate.x *= scale
           translate.y *= scale
         }
@@ -1738,7 +1758,7 @@ const GeometryUtil = {
         }
 
         // if A and B start on a touching horizontal line, the end point may not be the start point
-        var looped = false
+        let looped = false
         if (NFP.length > 0) {
           for (i = 0; i < NFP.length - 1; i++) {
             if (_almostEqual(referencex, NFP[i].x) && _almostEqual(referencey, NFP[i].y)) {
@@ -1780,22 +1800,22 @@ const GeometryUtil = {
 
   // given two polygons that touch at at least one point, but do not intersect. Return the outer perimeter of both polygons as a single continuous polygon
   // A and B must have the same winding direction
-  polygonHull: function (A, B) {
+  polygonHull: function (A: Polygon, B: Polygon) {
     if (!A || A.length < 3 || !B || B.length < 3) {
       return null
     }
 
-    var i, j
+    let i, j
 
-    var Aoffsetx = A.offsetx || 0
-    var Aoffsety = A.offsety || 0
-    var Boffsetx = B.offsetx || 0
-    var Boffsety = B.offsety || 0
+    let Aoffsetx = A.offsetx || 0
+    let Aoffsety = A.offsety || 0
+    let Boffsetx = B.offsetx || 0
+    let Boffsety = B.offsety || 0
 
     // start at an extreme point that is guaranteed to be on the final polygon
-    var miny = A[0].y
-    var startPolygon = A
-    var startIndex = 0
+    let miny = A[0].y
+    let startPolygon = A
+    let startIndex = 0
 
     for (i = 0; i < A.length; i++) {
       if (A[i].y + Aoffsety < miny) {
@@ -1826,18 +1846,18 @@ const GeometryUtil = {
     A = A.slice(0)
     B = B.slice(0)
 
-    var C = []
-    var current = startIndex
-    var intercept1 = null
-    var intercept2 = null
+    const C = []
+    let current = startIndex
+    let intercept1 = null
+    let intercept2 = null
 
     // scan forward from the starting point
     for (i = 0; i < A.length + 1; i++) {
       current = current == A.length ? 0 : current
-      var next = current == A.length - 1 ? 0 : current + 1
-      var touching = false
+      const next = current == A.length - 1 ? 0 : current + 1
+      let touching = false
       for (j = 0; j < B.length; j++) {
-        var nextj = j == B.length - 1 ? 0 : j + 1
+        const nextj = j == B.length - 1 ? 0 : j + 1
         if (
           _almostEqual(A[current].x + Aoffsetx, B[j].x + Boffsetx) &&
           _almostEqual(A[current].y + Aoffsety, B[j].y + Boffsety)
@@ -1886,10 +1906,10 @@ const GeometryUtil = {
     current = startIndex - 1
     for (i = 0; i < A.length + 1; i++) {
       current = current < 0 ? A.length - 1 : current
-      let next = current == 0 ? A.length - 1 : current - 1
+      const next = current == 0 ? A.length - 1 : current - 1
       let touching = false
       for (j = 0; j < B.length; j++) {
-        let nextj = j == B.length - 1 ? 0 : j + 1
+        const nextj = j == B.length - 1 ? 0 : j + 1
         if (
           _almostEqual(A[current].x + Aoffsetx, B[j].x + Boffsetx) &&
           _almostEqual(A[current].y, B[j].y + Boffsety)
@@ -1962,7 +1982,7 @@ const GeometryUtil = {
 
     // dedupe
     for (i = 0; i < C.length; i++) {
-      let next = i == C.length - 1 ? 0 : i + 1
+      const next = i == C.length - 1 ? 0 : i + 1
       if (_almostEqual(C[i].x, C[next].x) && _almostEqual(C[i].y, C[next].y)) {
         C.splice(i, 1)
         i--
@@ -1972,19 +1992,19 @@ const GeometryUtil = {
     return C
   },
 
-  rotatePolygon: function (polygon, angle) {
-    var rotated: any = []
+  rotatePolygon: function (polygon: Polygon, angle: number) {
+    const rotated: Polygon = []
     angle = (angle * Math.PI) / 180
-    for (var i = 0; i < polygon.length; i++) {
-      var x = polygon[i].x
-      var y = polygon[i].y
-      var x1 = x * Math.cos(angle) - y * Math.sin(angle)
-      var y1 = x * Math.sin(angle) + y * Math.cos(angle)
+    for (let i = 0; i < polygon.length; i++) {
+      const x = polygon[i].x
+      const y = polygon[i].y
+      const x1 = x * Math.cos(angle) - y * Math.sin(angle)
+      const y1 = x * Math.sin(angle) + y * Math.cos(angle)
 
       rotated.push({ x: x1, y: y1 })
     }
     // reset bounding box
-    var bounds = GeometryUtil.getPolygonBounds(rotated)
+    const bounds = GeometryUtil.getPolygonBounds(rotated)
     rotated.x = bounds.x
     rotated.y = bounds.y
     rotated.width = bounds.width

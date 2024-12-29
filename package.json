@@ -1,0 +1,58 @@
+{
+  "name": "@deepnest/geometryutil",
+  "version": "0.0.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js"
+    }
+  },
+  "scripts": {
+    "start": "tsc --watch",
+    "build": "tsc && tsc-alias -p tsconfig.json",
+    "postbuild": "esm2cjs --in dist/esm --out dist/cjs -l error",
+    "format": "prettier --write .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepnest-next/node-geometryutil.git"
+  },
+  "keywords": [
+    "deepnest",
+    "deepnest-next",
+    "worker",
+    "backend",
+    "worker-pool"
+  ],
+  "author": "Josef Fröhle",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/deepnest-next/node-geometryutil/issues"
+  },
+  "homepage": "https://www.deepnest.net",
+  "funding": [
+    {
+      "type": "patreon",
+      "url": "https://patreon.com/deepnest_next"
+    }
+  ],
+  "devDependencies": {
+    "@alcalzone/esm2cjs": "^1.4.1",
+    "@types/node": "^22.10.2",
+    "npm-run-all": "^4.1.5",
+    "tsc-alias": "^1.8.10",
+    "typescript": "^5.7.2"
+  }
+}

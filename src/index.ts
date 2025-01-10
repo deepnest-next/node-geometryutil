@@ -141,7 +141,7 @@ function _onSegment(A: Point, B: Point, p: Point, tolerance?: number) {
 // returns the intersection of AB and EF
 // or null if there are no intersections or other numerical error
 // if the infinite flag is set, AE and EF describe infinite lines without endpoints, they are finite line segments otherwise
-function _lineIntersect(A, B, E, F, infinite: boolean = false) {
+function _lineIntersect(A: Point, B: Point, E: Point, F: Point, infinite: boolean = false) {
   const a1 = B.y - A.y
   const b1 = A.x - B.x
   const c1 = B.x * A.y - A.x * B.y
@@ -182,7 +182,7 @@ function _lineIntersect(A, B, E, F, infinite: boolean = false) {
 }
 
 // public methods
-const GeometryUtil = {
+export const GeometryUtil = {
   withinDistance: _withinDistance,
 
   lineIntersect: _lineIntersect,
@@ -526,7 +526,7 @@ const GeometryUtil = {
   },
 
   // returns the rectangular bounding box of the given polygon
-  getPolygonBounds: function (polygon: Polygon) {
+  getPolygonBounds: function (polygon: Polygon): { x: number, y: number, width: number, height: number } | null {
     if (!polygon || polygon.length < 3) {
       return null
     }
@@ -762,7 +762,7 @@ const GeometryUtil = {
 
     // find the max and min points, they will be the endpoints of our edge
     let min = null
-    let max = null
+    let max: number | null = null
 
     const dotproduct = []
 
@@ -775,6 +775,10 @@ const GeometryUtil = {
       if (max === null || dot > max) {
         max = dot
       }
+    }
+
+    if (min === null || max === null) {
+      throw new Error('Invalid polygon: no min or max found')
     }
 
     // there may be multiple vertices with min/max values. In which case we choose the one that is normal-most (eg. left most)
@@ -957,7 +961,7 @@ const GeometryUtil = {
     return pdotnorm - s1dotnorm + ((s1dotnorm - s2dotnorm) * (s1dot - pdot)) / (s1dot - s2dot)
   },
 
-  pointDistance: function (p: Point, s1: Point, s2: Point, normal: Point, infinite: boolean) {
+  pointDistance: function (p: Point, s1: Point, s2: Point, normal: Point, infinite?: boolean) {
     normal = _normalizeVector(normal)
 
     const dir = {
@@ -1023,11 +1027,13 @@ const GeometryUtil = {
     const crossE = E.x * direction.x + E.y * direction.y
     const crossF = F.x * direction.x + F.y * direction.y
 
+    // TODO: is never used - remove?
+    /*
     const crossABmin = Math.min(crossA, crossB)
     const crossABmax = Math.max(crossA, crossB)
-
     const crossEFmax = Math.max(crossE, crossF)
     const crossEFmin = Math.min(crossE, crossF)
+    */
 
     const ABmin = Math.min(dotA, dotB)
     const ABmax = Math.max(dotA, dotB)
@@ -1104,7 +1110,7 @@ const GeometryUtil = {
       if (d !== null && _almostEqual(d, 0)) {
         //  A currently touches EF, but AB is moving away from EF
         const dB = this.pointDistance(B, E, F, reverse, true)
-        if (dB < 0 || _almostEqual(dB * overlap, 0)) {
+        if (dB !== null && (dB < 0 || _almostEqual(dB * overlap, 0))) {
           d = null
         }
       }
@@ -1123,7 +1129,7 @@ const GeometryUtil = {
       if (d !== null && _almostEqual(d, 0)) {
         // crossA>crossB A currently touches EF, but AB is moving away from EF
         const dA = this.pointDistance(A, E, F, reverse, true)
-        if (dA < 0 || _almostEqual(dA * overlap, 0)) {
+        if (dA !== null && (dA < 0 || _almostEqual(dA * overlap, 0))) {
           d = null
         }
       }
@@ -1137,7 +1143,7 @@ const GeometryUtil = {
       if (d !== null && _almostEqual(d, 0)) {
         // crossF<crossE A currently touches EF, but AB is moving away from EF
         const dF = this.pointDistance(F, A, B, direction, true)
-        if (dF < 0 || _almostEqual(dF * overlap, 0)) {
+        if (dF !== null && (dF < 0 || _almostEqual(dF * overlap, 0))) {
           d = null
         }
       }
@@ -1151,7 +1157,7 @@ const GeometryUtil = {
       if (d !== null && _almostEqual(d, 0)) {
         // && crossE<crossF A currently touches EF, but AB is moving away from EF
         const dE = this.pointDistance(E, A, B, direction, true)
-        if (dE < 0 || _almostEqual(dE * overlap, 0)) {
+        if (dE !== null && (dE < 0 || _almostEqual(dE * overlap, 0))) {
           d = null
         }
       }
@@ -1197,17 +1203,23 @@ const GeometryUtil = {
 
     const dir = _normalizeVector(direction)
 
+    // TODO: mind is never used - remove?
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const normal = {
       x: dir.y,
       y: -dir.x
     }
 
+    // TODO: mind is never used - remove?
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const reverse = {
       x: -dir.x,
       y: -dir.y
     }
 
     for (let i = 0; i < edgeB.length - 1; i++) {
+      // TODO: mind is never used - remove?
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const mind = null
       for (let j = 0; j < edgeA.length - 1; j++) {
         A1 = { x: edgeA[j].x + Aoffsetx, y: edgeA[j].y + Aoffsety }
@@ -1235,7 +1247,7 @@ const GeometryUtil = {
   },
 
   // project each point of B onto A in the given direction, and return the
-  polygonProjectionDistance: function (A, B, direction) {
+  polygonProjectionDistance: function (A: Polygon, B: Polygon, direction: Point) {
     const Boffsetx = B.offsetx || 0
     const Boffsety = B.offsety || 0
 
@@ -1289,7 +1301,7 @@ const GeometryUtil = {
 
   // searches for an arrangement of A and B such that they do not overlap
   // if an NFP is given, only search for startpoints that have not already been traversed in the given NFP
-  searchStartPoint: function (A: Polygon, B: Polygon, inside: boolean, NFP: Polygon[]) {
+  searchStartPoint: function (A: Polygon, B: Polygon, inside: boolean, NFP: Polygon[] = []) {
     // clone arrays
     A = A.slice(0)
     B = B.slice(0)
@@ -1415,6 +1427,9 @@ const GeometryUtil = {
 
   isRectangle: function (poly: Polygon, tolerance?: number) {
     const bb = this.getPolygonBounds(poly)
+    if (!bb) {
+      return false
+    }
     if (!tolerance) {
       tolerance = TOL
     }
@@ -1543,10 +1558,10 @@ const GeometryUtil = {
       B.offsety = startpoint.y
 
       // maintain a list of touching points/edges
-      var touching
+      let touching = []
 
       let prevvector = null // keep track of previous vector
-      let NFP = [
+      let NFP: Array<{ x: number, y: number }> | null = [
         {
           x: B[0].x + B.offsetx,
           y: B[0].y + B.offsety
@@ -2005,6 +2020,9 @@ const GeometryUtil = {
     }
     // reset bounding box
     const bounds = GeometryUtil.getPolygonBounds(rotated)
+    if (bounds == null) {
+      throw new Error('Invalid polygon')
+    }
     rotated.x = bounds.x
     rotated.y = bounds.y
     rotated.width = bounds.width
@@ -2014,4 +2032,3 @@ const GeometryUtil = {
   }
 }
 
-export default GeometryUtil

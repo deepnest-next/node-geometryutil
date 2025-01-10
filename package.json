@@ -1,6 +1,6 @@
 {
   "name": "@deepnest/geometryutil",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "publishConfig": {
     "access": "public"
   },
@@ -15,13 +15,15 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "require": "./dist/cjs/index.js",
-      "import": "./dist/esm/index.js"
+      "import": "./dist/esm/index.js",
+      "default": "./dist/esm/index.js"
     }
   },
   "scripts": {
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "build:clean": "shx rm -rf ./build",
+    "build": "npm-run-all build:clean compile && node ./scripts/prepare-package-json.js",
     "start": "tsc --watch",
-    "build": "tsc && tsc-alias -p tsconfig.json",
-    "postbuild": "esm2cjs --in dist/esm --out dist/cjs -l error",
     "format": "prettier --write .",
     "lint": "eslint . --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -56,7 +58,8 @@
     "eslint": "^9.17.0",
     "npm-run-all": "^4.1.5",
     "tsc-alias": "^1.8.10",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.2"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
+    "shx": "0.3.4"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@deepnest/geometryutil",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publishConfig": {
     "access": "public"
   },
@@ -40,7 +40,7 @@
     "worker-pool"
   ],
   "author": "Josef Fröhle",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/deepnest-next/node-geometryutil/issues"
   },

@@ -8,7 +8,8 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.tsbuildinfo"
   ],
   "exports": {
     "./package.json": "./package.json",
@@ -23,6 +24,7 @@
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "shx rm -rf ./build",
     "build": "npm-run-all build:clean compile && node ./scripts/prepare-package-json.js",
+    "prepack": "npm run build",
     "start": "tsc --watch",
     "format": "prettier --write .",
     "lint": "eslint . --fix",
